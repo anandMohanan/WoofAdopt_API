@@ -1,0 +1,140 @@
+package main
+
+import (
+	"database/sql"
+	"fmt"
+	"log"
+	"os"
+	"strings"
+	"time"
+
+	_ "github.com/tursodatabase/libsql-client-go/libsql"
+)
+
+type Storage interface {
+	CreateDog(*Dog) error
+	DeleteDog(int) error
+	UpdateDog(*Dog) error
+	GetDogById(int) (*Dog, error)
+	CreateUser(*User) error
+	GetAllUsers() ([]*User, error)
+}
+
+type SqlLiteStore struct {
+	db *sql.DB
+}
+
+func NewStore() (*SqlLiteStore, error) {
+	// if err := godotenv.Load(); err != nil {
+	// 	fmt.Println("Error loading .env file")
+	// 	return nil, err
+	// }
+
+	url := os.Getenv("DB_URL")
+	db, err := sql.Open("libsql", url)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to open db %s: %s", url, err)
+		os.Exit(1)
+	}
+	if err = db.Ping(); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to open db %s: %s", url, err)
+		os.Exit(1)
+	}
+	return &SqlLiteStore{
+		db,
+	}, nil
+}
+func (s *SqlLiteStore) Init() {
+	if err := s.CreateDogTable(); err != nil {
+		log.Fatal(err)
+	}
+	if err := s.CreateUserTable(); err != nil {
+		log.Fatal(err)
+	}
+	if err := s.CreateBreedTable(); err != nil {
+		log.Fatal(err)
+	}
+	if err := s.CreateFavoriteTable(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (s *SqlLiteStore) CreateDogTable() error {
+	_, err := s.db.Exec(CreateDogTableQuery)
+	return err
+}
+
+func (s *SqlLiteStore) CreateBreedTable() error {
+	_, err := s.db.Exec(CreateBreedTableQuery)
+	return err
+}
+func (s *SqlLiteStore) CreateUserTable() error {
+	_, err := s.db.Exec(CreateUserTableQuery)
+	return err
+}
+func (s *SqlLiteStore) CreateFavoriteTable() error {
+	_, err := s.db.Exec(CreateFavouriteTableQuery)
+	return err
+}
+func (s *SqlLiteStore) CreateDog(*Dog) error {
+	return nil
+}
+
+func (s *SqlLiteStore) CreateUser(user *User) error {
+	query, err := s.db.Prepare(`insert into user(first_name, last_name, mail_id, is_active, created_at, lastmodified_at) values(?,?,?,?,?,?)`)
+	if err != nil {
+		return err
+	}
+	defer query.Close()
+	resp, err := query.Exec(user.FirstName, user.LastName, user.MailID, user.IsActive, user.CreatedAt, user.LastModifiedAt)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%+v\n", resp)
+	return nil
+}
+
+func (s *SqlLiteStore) DeleteDog(int) error {
+	return nil
+}
+func (s *SqlLiteStore) UpdateDog(*Dog) error {
+	return nil
+}
+func (s *SqlLiteStore) GetDogById(int) (*Dog, error) {
+	return &Dog{}, nil
+}
+func (s *SqlLiteStore) GetAllUsers() ([]*User, error) {
+
+	query, err := s.db.Prepare(`select * from  user where is_active=1`)
+
+	if err != nil {
+		return nil, err
+	}
+	defer query.Close()
+	resp, err := query.Query()
+	if err != nil {
+		return nil, err
+	}
+	users := []*User{}
+	for resp.Next() {
+		user := new(User)
+		var createdAt, lastModifiedAt string
+		if err := resp.Scan(
+			&user.ID, &user.FirstName, &user.LastName, &user.MailID, &user.IsActive, &createdAt, &lastModifiedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		user.CreatedAt, err = time.Parse("2006-01-02 15:04:05.999999999", strings.Split(createdAt, "+")[0])
+		if err != nil {
+			return nil, err
+		}
+		user.LastModifiedAt, err = time.Parse("2006-01-02 15:04:05.999999999", strings.Split(lastModifiedAt, "+")[0])
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+
+	}
+	return users, nil
+}
