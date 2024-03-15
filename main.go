@@ -9,8 +9,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	 store.Init();
-	
+	store.Init()
+
 	server := APIServer{":8080", store}
 	server.Run()
 }

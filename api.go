@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 )
@@ -35,8 +36,9 @@ func convertHttpHandlerFunc(f apiFunc) http.HandlerFunc {
 func (api *APIServer) Run() {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/getDogs", convertHttpHandlerFunc(api.handleGetDogs)).Methods("GET")
+	// router.HandleFunc("/getDogs", convertHttpHandlerFunc(api.handleGetDogs)).Methods("GET")
 	router.HandleFunc("/getUsers", convertHttpHandlerFunc(api.handleGetUsers)).Methods("GET")
+	router.HandleFunc("/user/{id}", convertHttpHandlerFunc(api.handleGetUserById)).Methods("GET")
 	router.HandleFunc("/createUser", convertHttpHandlerFunc(api.handleCreateUser)).Methods("POST")
 	fmt.Println("server running")
 	http.ListenAndServe(api.listenAddr, router)
@@ -53,10 +55,17 @@ func (api *APIServer) handleDogs(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// dogName, breed, location, imageUrl, firstName, lastName, mailID string, contactNumber int64)
-func (api *APIServer) handleGetDogs(w http.ResponseWriter, r *http.Request) error {
-	// dog := NewDog("timmy", "german", "chennai", "https://github.com", "anand", "mohanan", 7448506511)
-	return nil
+func (api *APIServer) handleGetUserById(w http.ResponseWriter, r *http.Request) error {
+	id := mux.Vars(r)["id"]
+    userid, err := strconv.Atoi(id)
+	if err != nil {
+		return err
+	}
+    resp, err := api.store.GetUserById(userid)
+	if err != nil {
+		return err
+	}
+    return WriteJSON(w, http.StatusOK, resp)
 }
 func (api *APIServer) handleGetUsers(w http.ResponseWriter, r *http.Request) error {
 	resp, err := api.store.GetAllUsers()

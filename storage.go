@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/joho/godotenv"
 	_ "github.com/tursodatabase/libsql-client-go/libsql"
 )
 
@@ -18,6 +19,7 @@ type Storage interface {
 	GetDogById(int) (*Dog, error)
 	CreateUser(*User) error
 	GetAllUsers() ([]*User, error)
+	GetUserById(int) (*User, error)
 }
 
 type SqlLiteStore struct {
@@ -25,10 +27,10 @@ type SqlLiteStore struct {
 }
 
 func NewStore() (*SqlLiteStore, error) {
-	// if err := godotenv.Load(); err != nil {
-	// 	fmt.Println("Error loading .env file")
-	// 	return nil, err
-	// }
+	if err := godotenv.Load(); err != nil {
+		fmt.Println("Error loading .env file")
+		return nil, err
+	}
 
 	url := os.Getenv("DB_URL")
 	db, err := sql.Open("libsql", url)
@@ -137,4 +139,37 @@ func (s *SqlLiteStore) GetAllUsers() ([]*User, error) {
 
 	}
 	return users, nil
+
+}
+
+func (s *SqlLiteStore) GetUserById(userId int) (*User, error) {
+	query := `SELECT * FROM user WHERE is_active = 1 AND user_id = ?`
+
+	// Execute the query with the userId parameter
+	row := s.db.QueryRow(query, userId)
+
+	// Initialize a User struct to store the result
+	user := &User{}
+
+	// Scan the row into the User struct
+	var createdAt, lastModifiedAt string
+	err := row.Scan(&user.ID, &user.FirstName, &user.LastName, &user.MailID, &user.IsActive, &createdAt, &lastModifiedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("User not found")
+		}
+		return nil, err
+	}
+
+	user.CreatedAt, err = time.Parse("2006-01-02 15:04:05.999999999", strings.Split(createdAt, "+")[0])
+		if err != nil {
+			return nil, err
+		}
+		user.LastModifiedAt, err = time.Parse("2006-01-02 15:04:05.999999999", strings.Split(lastModifiedAt, "+")[0])
+		if err != nil {
+			return nil, err
+		}
+
+
+	return user, nil
 }
