@@ -19,6 +19,8 @@ var CreateUserTableQuery string = `create table if not exists user(
     first_name TEXT,
     last_name TEXT,
     mail_id TEXT,
+    user_name TEXT,
+    encrypted_password TEXT,
     is_active INTEGER,
     created_at TEXT,
     lastmodified_at TEXT

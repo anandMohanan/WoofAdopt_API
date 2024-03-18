@@ -14,12 +14,13 @@ import (
 
 type Storage interface {
 	CreateDog(*Dog) error
-	DeleteDog(int) error
+	DeleteUser(int) error
 	UpdateDog(*Dog) error
 	GetDogById(int) (*Dog, error)
 	CreateUser(*User) error
 	GetAllUsers() ([]*User, error)
 	GetUserById(int) (*User, error)
+	GetUserByUsername(user_name string) (*User, error)
 }
 
 type SqlLiteStore struct {
@@ -83,20 +84,42 @@ func (s *SqlLiteStore) CreateDog(*Dog) error {
 }
 
 func (s *SqlLiteStore) CreateUser(user *User) error {
-	query, err := s.db.Prepare(`insert into user(first_name, last_name, mail_id, is_active, created_at, lastmodified_at) values(?,?,?,?,?,?)`)
+	query, err := s.db.Prepare(`insert into user(first_name, last_name, mail_id,user_name, encrypted_password ,is_active, created_at, lastmodified_at) values(?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
 	defer query.Close()
-	resp, err := query.Exec(user.FirstName, user.LastName, user.MailID, user.IsActive, user.CreatedAt, user.LastModifiedAt)
+	resp, err := query.Exec(user.FirstName, user.LastName, user.MailID, user.UserName, user.EncryptedPassword, user.IsActive, user.CreatedAt, user.LastModifiedAt)
 	if err != nil {
 		return err
 	}
+	userId, err := resp.LastInsertId()
+
+	if err != nil {
+		return err
+	}
+	id := int(userId)
+	user.ID = id
 	fmt.Printf("%+v\n", resp)
 	return nil
 }
 
-func (s *SqlLiteStore) DeleteDog(int) error {
+func (s *SqlLiteStore) DeleteUser(user_id int) error {
+	_, err := s.GetUserById(user_id)
+	if err != nil {
+		return err
+	}
+	query, err := s.db.Prepare(`update user set is_active=0 where user_id = ?`)
+	if err != nil {
+		return err
+	}
+	defer query.Close()
+	resp, err := query.Exec(user_id)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%+v\n", resp)
 	return nil
 }
 func (s *SqlLiteStore) UpdateDog(*Dog) error {
@@ -122,7 +145,7 @@ func (s *SqlLiteStore) GetAllUsers() ([]*User, error) {
 		user := new(User)
 		var createdAt, lastModifiedAt string
 		if err := resp.Scan(
-			&user.ID, &user.FirstName, &user.LastName, &user.MailID, &user.IsActive, &createdAt, &lastModifiedAt,
+			&user.ID, &user.FirstName, &user.LastName, &user.MailID, &user.UserName, &user.EncryptedPassword, &user.IsActive, &createdAt, &lastModifiedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -153,7 +176,7 @@ func (s *SqlLiteStore) GetUserById(userId int) (*User, error) {
 
 	// Scan the row into the User struct
 	var createdAt, lastModifiedAt string
-	err := row.Scan(&user.ID, &user.FirstName, &user.LastName, &user.MailID, &user.IsActive, &createdAt, &lastModifiedAt)
+	err := row.Scan(&user.ID, &user.FirstName, &user.LastName, &user.MailID, &user.UserName, &user.EncryptedPassword, &user.IsActive, &createdAt, &lastModifiedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("User not found")
@@ -162,14 +185,43 @@ func (s *SqlLiteStore) GetUserById(userId int) (*User, error) {
 	}
 
 	user.CreatedAt, err = time.Parse("2006-01-02 15:04:05.999999999", strings.Split(createdAt, "+")[0])
-		if err != nil {
-			return nil, err
-		}
-		user.LastModifiedAt, err = time.Parse("2006-01-02 15:04:05.999999999", strings.Split(lastModifiedAt, "+")[0])
-		if err != nil {
-			return nil, err
-		}
+	if err != nil {
+		return nil, err
+	}
+	user.LastModifiedAt, err = time.Parse("2006-01-02 15:04:05.999999999", strings.Split(lastModifiedAt, "+")[0])
+	if err != nil {
+		return nil, err
+	}
 
+	return user, nil
+}
+func (s *SqlLiteStore) GetUserByUsername(userName string) (*User, error) {
+	query := `SELECT * FROM user WHERE is_active = 1 AND user_name = ?`
+
+	// Execute the query with the userId parameter
+	row := s.db.QueryRow(query, userName)
+
+	// Initialize a User struct to store the result
+	user := &User{}
+
+	// Scan the row into the User struct
+	var createdAt, lastModifiedAt string
+	err := row.Scan(&user.ID, &user.FirstName, &user.LastName, &user.MailID, &user.UserName, &user.EncryptedPassword, &user.IsActive, &createdAt, &lastModifiedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("User not found")
+		}
+		return nil, err
+	}
+
+	user.CreatedAt, err = time.Parse("2006-01-02 15:04:05.999999999", strings.Split(createdAt, "+")[0])
+	if err != nil {
+		return nil, err
+	}
+	user.LastModifiedAt, err = time.Parse("2006-01-02 15:04:05.999999999", strings.Split(lastModifiedAt, "+")[0])
+	if err != nil {
+		return nil, err
+	}
 
 	return user, nil
 }

@@ -1,9 +1,20 @@
 package main
 
 import (
+	"log"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
+type LoginRequest struct {
+	Username string `json:"user_name"`
+	Password string `json:"password"`
+}
+type LoginResponse struct {
+	User  User
+	Token string `json:"token"`
+}
 type CreateDogRequest struct {
 	DogName       string `json:"dog_name"`
 	Breed         string `json:"breed"`
@@ -15,7 +26,12 @@ type CreateDogRequest struct {
 type CreateUserRequest struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
+	Password  string `json:"password"`
+	Username  string `json:"user_name"`
 	MailID    string `json:"mail_id"`
+}
+type DeleteUserRequest struct {
+	UserID int `json:"user_id"`
 }
 
 type Dog struct {
@@ -32,13 +48,15 @@ type Dog struct {
 }
 
 type User struct {
-	ID             int       `json:"id"`
-	FirstName      string    `json:"first_name"`
-	LastName       string    `json:"last_name"`
-	MailID         string    `json:"mail_id"`
-	IsActive       int       `json:"is_active"`
-	CreatedAt      time.Time `json:"created_at"`
-	LastModifiedAt time.Time `json:"lastmodified_at"`
+	ID                int       `json:"id"`
+	FirstName         string    `json:"first_name"`
+	LastName          string    `json:"last_name"`
+	MailID            string    `json:"mail_id"`
+	UserName          string    `json:"user_name"`
+	EncryptedPassword string    `json:"encrypted_password"`
+	IsActive          int       `json:"is_active"`
+	CreatedAt         time.Time `json:"created_at"`
+	LastModifiedAt    time.Time `json:"lastmodified_at"`
 }
 
 type Favorite struct {
@@ -65,13 +83,19 @@ func NewDog(dogName, breed, location, imageUrl string, owner int, contactNumber 
 	}
 }
 
-func NewUser(userFirstName, userLastName, userMailId string) *User {
+func NewUser(userFirstName, userLastName, userMailId, password, userName string) *User {
+	encryptedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Fatal(err)
+	}
 	return &User{
-		FirstName:      userFirstName,
-		LastName:       userLastName,
-		MailID:         userMailId,
-		IsActive:       1,
-		CreatedAt:      time.Now().UTC(),
-		LastModifiedAt: time.Now().UTC(),
+		FirstName:         userFirstName,
+		LastName:          userLastName,
+		MailID:            userMailId,
+		UserName:          userName,
+		EncryptedPassword: string(encryptedPassword),
+		IsActive:          1,
+		CreatedAt:         time.Now().UTC(),
+		LastModifiedAt:    time.Now().UTC(),
 	}
 }
