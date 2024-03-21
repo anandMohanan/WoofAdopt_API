@@ -1,4 +1,4 @@
-package main
+package queries
 
 var CreateDogTableQuery string = `create table if not exists dog(
     dog_id   INTEGER PRIMARY KEY,

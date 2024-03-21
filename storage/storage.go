@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"database/sql"
@@ -8,19 +8,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/anandMohanan/WoofAdopt_API/models"
+	"github.com/anandMohanan/WoofAdopt_API/queries"
 	"github.com/joho/godotenv"
 	_ "github.com/tursodatabase/libsql-client-go/libsql"
 )
 
 type Storage interface {
-	CreateDog(*Dog) error
+	CreateDog(*models.Dog) error
 	DeleteUser(int) error
-	UpdateDog(*Dog) error
-	GetDogById(int) (*Dog, error)
-	CreateUser(*User) error
-	GetAllUsers() ([]*User, error)
-	GetUserById(int) (*User, error)
-	GetUserByUsername(user_name string) (*User, error)
+	UpdateDog(*models.Dog) error
+	GetDogById(int) (*models.Dog, error)
+	CreateUser(*models.User) error
+	GetAllUsers() ([]*models.User, error)
+	GetUserById(int) (*models.User, error)
+	GetUserByUsername(user_name string) (*models.User, error)
 }
 
 type SqlLiteStore struct {
@@ -63,27 +65,27 @@ func (s *SqlLiteStore) Init() {
 }
 
 func (s *SqlLiteStore) CreateDogTable() error {
-	_, err := s.db.Exec(CreateDogTableQuery)
+	_, err := s.db.Exec(queries.CreateDogTableQuery)
 	return err
 }
 
 func (s *SqlLiteStore) CreateBreedTable() error {
-	_, err := s.db.Exec(CreateBreedTableQuery)
+	_, err := s.db.Exec(queries.CreateBreedTableQuery)
 	return err
 }
 func (s *SqlLiteStore) CreateUserTable() error {
-	_, err := s.db.Exec(CreateUserTableQuery)
+	_, err := s.db.Exec(queries.CreateUserTableQuery)
 	return err
 }
 func (s *SqlLiteStore) CreateFavoriteTable() error {
-	_, err := s.db.Exec(CreateFavouriteTableQuery)
+	_, err := s.db.Exec(queries.CreateFavouriteTableQuery)
 	return err
 }
-func (s *SqlLiteStore) CreateDog(*Dog) error {
+func (s *SqlLiteStore) CreateDog(*models.Dog) error {
 	return nil
 }
 
-func (s *SqlLiteStore) CreateUser(user *User) error {
+func (s *SqlLiteStore) CreateUser(user *models.User) error {
 	query, err := s.db.Prepare(`insert into user(first_name, last_name, mail_id,user_name, encrypted_password ,is_active, created_at, lastmodified_at) values(?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return err
@@ -122,13 +124,13 @@ func (s *SqlLiteStore) DeleteUser(user_id int) error {
 	fmt.Printf("%+v\n", resp)
 	return nil
 }
-func (s *SqlLiteStore) UpdateDog(*Dog) error {
+func (s *SqlLiteStore) UpdateDog(*models.Dog) error {
 	return nil
 }
-func (s *SqlLiteStore) GetDogById(int) (*Dog, error) {
-	return &Dog{}, nil
+func (s *SqlLiteStore) GetDogById(int) (*models.Dog, error) {
+	return &models.Dog{}, nil
 }
-func (s *SqlLiteStore) GetAllUsers() ([]*User, error) {
+func (s *SqlLiteStore) GetAllUsers() ([]*models.User, error) {
 
 	query, err := s.db.Prepare(`select * from  user where is_active=1`)
 
@@ -140,9 +142,9 @@ func (s *SqlLiteStore) GetAllUsers() ([]*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	users := []*User{}
+	users := []*models.User{}
 	for resp.Next() {
-		user := new(User)
+		user := new(models.User)
 		var createdAt, lastModifiedAt string
 		if err := resp.Scan(
 			&user.ID, &user.FirstName, &user.LastName, &user.MailID, &user.UserName, &user.EncryptedPassword, &user.IsActive, &createdAt, &lastModifiedAt,
@@ -165,14 +167,14 @@ func (s *SqlLiteStore) GetAllUsers() ([]*User, error) {
 
 }
 
-func (s *SqlLiteStore) GetUserById(userId int) (*User, error) {
+func (s *SqlLiteStore) GetUserById(userId int) (*models.User, error) {
 	query := `SELECT * FROM user WHERE is_active = 1 AND user_id = ?`
 
 	// Execute the query with the userId parameter
 	row := s.db.QueryRow(query, userId)
 
 	// Initialize a User struct to store the result
-	user := &User{}
+	user := &models.User{}
 
 	// Scan the row into the User struct
 	var createdAt, lastModifiedAt string
@@ -195,14 +197,14 @@ func (s *SqlLiteStore) GetUserById(userId int) (*User, error) {
 
 	return user, nil
 }
-func (s *SqlLiteStore) GetUserByUsername(userName string) (*User, error) {
+func (s *SqlLiteStore) GetUserByUsername(userName string) (*models.User, error) {
 	query := `SELECT * FROM user WHERE is_active = 1 AND user_name = ?`
 
 	// Execute the query with the userId parameter
 	row := s.db.QueryRow(query, userName)
 
 	// Initialize a User struct to store the result
-	user := &User{}
+	user := &models.User{}
 
 	// Scan the row into the User struct
 	var createdAt, lastModifiedAt string
